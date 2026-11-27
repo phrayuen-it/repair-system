@@ -147,6 +147,8 @@ tr:hover td{background:#f8fdff}
   /* ===== รายงานเพิ่ม ===== */
   .urgent-bar{background:linear-gradient(135deg,#fff1f2,#ffe4e6);border:1.5px solid #fda4af;color:#9f1239;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:700;flex-wrap:wrap}
   .urgent-bar[hidden]{display:none}
+
+  .photo-loading{color:#334155;font-size:.92rem;margin:8px 0;padding:10px;border-radius:12px;background:#f8fafc}
 </style>
 </head>
 <body>
@@ -457,6 +459,32 @@ tr:hover td{background:#f8fdff}
     toast(`ส่งออก ${rows.length} งานแล้ว ✓`);
   });
 
+  // ----- โหลดรูปแนบ: เก็บไว้ในหน้า ไม่โหลดซ้ำเมื่อเปิดงานเดิมอีก -----
+  const photoCache = {};
+  function showPhoto(src) {
+    const holder = $("photoHolder");
+    if (!holder) return;
+    holder.className = "";
+    holder.innerHTML = `<img src="${src}" alt="รูปแนบ" class="thumb">`;
+    holder.querySelector("img").addEventListener("click", () => openLightbox(src));
+  }
+  async function loadPhoto(no) {
+    if (photoCache[no]) return showPhoto(photoCache[no]);
+    try {
+      const r = await api({ action: "photo", ticketNo: no });
+      if (r.error) {
+        const holder = $("photoHolder");
+        if (holder) holder.textContent = "โหลดรูปไม่สำเร็จ: " + r.error;
+        return;
+      }
+      photoCache[no] = r.dataUrl;
+      showPhoto(r.dataUrl);
+    } catch (e) {
+      const holder = $("photoHolder");
+      if (holder) holder.textContent = "โหลดรูปไม่สำเร็จ ลองเปิดงานนี้ใหม่อีกครั้ง";
+    }
+  }
+
   // ----- รูปแนบแบบขยาย -----
   function openLightbox(src) {
     const lb = document.createElement("div");
@@ -486,7 +514,7 @@ tr:hover td{background:#f8fdff}
           <p style="margin:0 0 4px">👤 ${esc(t.reporterName)}</p>
           <p style="margin:0 0 4px">🔧 ${esc(t.symptoms)}</p>
           ${t.detail ? `<p style="background:#f8fafc;padding:10px;border-radius:12px">${esc(t.detail)}</p>` : ""}
-          ${t.hasPhoto ? `<p><button class="btn ghost sm" id="viewPhoto">📷 ดูรูปแนบ</button></p><div id="photoHolder"></div>` : ""}
+          ${t.hasPhoto ? `<div id="photoHolder" class="photo-loading">📷 กำลังโหลดรูป...</div>` : ""}
           ${t.reporterConfirmed ? `<p>ผลการยืนยันจากผู้แจ้ง: <b>${esc(t.reporterConfirmed)}</b></p>` : ""}
           ${t.startedAt ? `<p style="margin:0 0 4px">รับงานเมื่อ ${fmt(t.startedAt)}</p>` : ""}
           ${t.completedAt ? `<p style="margin:0 0 4px">เสร็จเมื่อ ${fmt(t.completedAt)}</p>` : ""}
@@ -508,14 +536,7 @@ tr:hover td{background:#f8fdff}
     $("mCancel").onclick = () => host.innerHTML = "";
     $("modal").addEventListener("click", e => { if (e.target.id === "modal") host.innerHTML = ""; });
 
-    const vp = $("viewPhoto");
-    if (vp) vp.onclick = async () => {
-      vp.disabled = true;
-      const r = await api({ action: "photo", ticketNo: t.ticketNo });
-      if (r.error) { toast(r.error); vp.disabled = false; return; }
-      $("photoHolder").innerHTML = `<img src="${r.dataUrl}" alt="รูปแนบ" class="thumb">`;
-      $("photoHolder").querySelector("img").addEventListener("click", () => openLightbox(r.dataUrl));
-    };
+    if (t.hasPhoto) loadPhoto(t.ticketNo);
     const cxl = $("cancelBtn");
     if (cxl) cxl.onclick = async () => {
       if ($("eStatus").value !== "ยกเลิก") {
