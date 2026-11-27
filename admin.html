@@ -216,10 +216,6 @@ tr:hover td{background:#f8fdff}
     <div class="two">
       <div class="panel-box"><h3>🔧 อาการที่พบบ่อย</h3><div id="bySymptom"></div></div>
       <div class="panel-box"><h3>⏱️ ความเร่งด่วน</h3><div id="byUrgency"></div></div>
-    </div>
-    <div class="two">
-      <div class="panel-box"><h3>📅 งานรายเดือน (6 เดือนล่าสุด)</h3><div id="monthTrend"></div></div>
-      <div class="panel-box"><h3>🛠️ ผลงานตามช่าง</h3><div id="techPerf"></div></div>
     </div></section>
 
   <!-- รายชื่อผู้แจ้งซ่อม (แอดมินเท่านั้น) -->
@@ -592,8 +588,6 @@ tr:hover td{background:#f8fdff}
 
     $("bySymptom").innerHTML = barList(countBy(list, t => String(t.symptoms).split(", ")).slice(0, 8), total, "linear-gradient(90deg,#f59e0b,#ec4899)");
     $("byUrgency").innerHTML = barList(countBy(list, t => [t.urgency]), total, "linear-gradient(90deg,#fb7185,#e11d48)");
-    renderMonthTrend();
-    renderTechPerf();
 
   }
 
@@ -611,39 +605,6 @@ tr:hover td{background:#f8fdff}
       bar.hidden = true;
     }
     lastUrgentCount = urgent;
-  }
-  function renderMonthTrend() {
-    const now = new Date();
-    const months = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({ key: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"), label: d.toLocaleDateString("th-TH", { month: "short", year: "2-digit" }), n: 0, done: 0 });
-    }
-    D.tickets.forEach(t => {
-      const d = new Date(t.createdAt);
-      if (isNaN(d)) return;
-      const key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
-      const m = months.find(x => x.key === key);
-      if (m) { m.n++; if (t.status === "เสร็จแล้ว") m.done++; }
-    });
-    const max = Math.max(1, ...months.map(m => m.n));
-    $("monthTrend").innerHTML = months.map(m => `
-      <div class="bar"><span>${esc(m.label)}</span>
-        <div class="track"><i style="width:${(m.n / max * 100).toFixed(1)}%"></i></div>
-        <b>${m.n} งาน (เสร็จ ${m.done})</b></div>`).join("");
-  }
-  function renderTechPerf() {
-    const map = {};
-    D.tickets.forEach(t => {
-      const k = t.technician || "ไม่ระบุ";
-      map[k] = map[k] || { total: 0, done: 0, doing: 0 };
-      map[k].total++;
-      if (t.status === "เสร็จแล้ว") map[k].done++;
-      if (t.status === "กำลังซ่อม") map[k].doing++;
-    });
-    const rows = Object.entries(map).sort((a, b) => b[1].total - a[1].total);
-    $("techPerf").innerHTML = rows.length ? `<table><thead><tr><th>ช่าง</th><th>ทั้งหมด</th><th>กำลังซ่อม</th><th>เสร็จแล้ว</th></tr></thead><tbody>${rows.map(([k, v]) =>
-      `<tr><td>${esc(k)}</td><td>${v.total}</td><td>${v.doing}</td><td>${v.done}</td></tr>`).join("")}</tbody></table>` : `<p style="color:#334155">ยังไม่มีข้อมูล</p>`;
   }
 
   // ----- รายชื่อผู้แจ้งซ่อม (แอดมิน) -----
